@@ -2,7 +2,7 @@ require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const { createClient } = require('@supabase/supabase-js');
-const rateLimit = require('express-rate-limit'); // <-- El portero
+const rateLimit = require('express-rate-limit');
 
 const app = express();
 app.set('trust proxy', 1); 
@@ -28,6 +28,39 @@ app.get('/', (req, res) => {
     res.send("Servidor Backend Activo y Despierto");
 });
 
+// 🟢 ENDPOINT PARA GUARDAR EL CONSENTIMIENTO GDPR
+app.post('/api/gdpr_consent', async (req, res) => {
+    try {
+        const { email, local_id, terms_version, marketing_opt_in } = req.body;
+        
+        if (!email || !local_id || marketing_opt_in === undefined) {
+            return res.status(400).json({ error: "Faltan campos obligatorios: email, local_id, marketing_opt_in" });
+        }
+        
+        const terms = terms_version || "1.0";
+        
+        const { error } = await supabase
+            .from('leads')
+            .upsert({
+                email: email,
+                local_id: local_id,
+                terms_version: terms,
+                marketing_opt_in: marketing_opt_in,
+                gdpr_accepted: true
+            }, {
+                onConflict: 'email'
+            });
+        
+        if (error) throw error;
+        
+        res.json({ success: true, message: "Consentimiento GDPR guardado" });
+    } catch (error) {
+        console.error("Error guardando consentimiento GDPR:", error);
+        res.status(500).json({ error: "Error interno del servidor" });
+    }
+});
+
+// 🟢 ENDPOINT DEL CHAT (con rate limiter)
 app.post('/api/chat', chatLimiter, async (req, res) => {
     try {
         const response = await fetch('https://api.openai.com/v1/chat/completions', {
@@ -68,7 +101,6 @@ app.post('/api/chat', chatLimiter, async (req, res) => {
 
         // 💾 GUARDAR EN SUPABASE MULTI-TENANT
         if (process.env.SUPABASE_URL && process.env.SUPABASE_URL !== 'https://dummy.supabase.co') {
-            // Cogemos el ID del local que nos manda el HTML (Ej: 'bistro_est')
             const id_del_local = req.body.local_id || 'desconocido';
 
             await Promise.all([
