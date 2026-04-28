@@ -28,8 +28,14 @@ app.get('/', (req, res) => {
     res.send("Servidor Backend Activo y Despierto");
 });
 
+// 🟢 ENDPOINT GET (SOLO PER IL BROWSER, EVITA L'ERRORE "CANNOT GET")
+app.get('/api/gdpr_consent', (req, res) => {
+    res.send("✅ El endpoint GDPR existe, está activo y listo para recibir peticiones POST desde el Chatbot.");
+});
+
 // 🟢 ENDPOINT PARA GUARDAR EL CONSENTIMIENTO GDPR
 app.post('/api/gdpr_consent', async (req, res) => {
+    console.log("-> RECIBIDO CONSENTIMIENTO GDPR:", req.body);
     try {
         const { email, local_id, terms_version, marketing_opt_in } = req.body;
         
